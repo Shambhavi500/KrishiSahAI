@@ -21,3 +21,4 @@ export const ChatLayout: React.FC<ChatLayoutProps> = ({ sidebar, children }) => 
         </div>
     );
 };
+

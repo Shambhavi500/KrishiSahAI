@@ -80,6 +80,21 @@ def load_disease_data():
         print(f"Error loading disease data: {e}")
 load_disease_data()
 
+# --- Pest Detector Setup ---
+PEST_DETECTOR_DIR = Path(__file__).resolve().parent / 'services' / 'Pest Detector'
+if str(PEST_DETECTOR_DIR) not in sys.path:
+    sys.path.append(str(PEST_DETECTOR_DIR))
+
+try:
+    from detector import predict as pest_predict, init_model as pest_init
+    # Warm up the pest detection model
+    pest_init()
+    print("Pest detection model initialized successfully")
+except Exception as e:
+    print(f"Warning: Pest detection model failed to initialize: {e}")
+    print("   The /api/pest/detect endpoint will return errors until dependencies are available.")
+    pest_predict = None
+
 # --- Business Advisor Setup ---
 BUSINESS_ADVISOR_DIR = Path(__file__).resolve().parent / 'services' / 'Business Advisor'
 if str(BUSINESS_ADVISOR_DIR) not in sys.path:
@@ -104,6 +119,10 @@ except Exception as e:
     print("   The /api/waste-to-value endpoints will return errors until Ollama is available.")
     import traceback
     traceback.print_exc()
+
+# --- VoiceText Setup ---
+from services.VoiceText.voice_service import voice_service, AUDIO_FOLDER
+
 
 # --- Utilities ---
 def allowed_file(filename):
@@ -230,6 +249,48 @@ def detect_disease():
         })
     except Exception as e:
         print(f"[SCAN] Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+# --- Pest Detector Routes ---
+@app.route('/api/pest/detect', methods=['POST'])
+@require_auth
+def detect_pest():
+    try:
+        if pest_predict is None:
+            return jsonify({'error': 'Pest detection service is currently unavailable'}), 503
+            
+        if 'image' not in request.files:
+            return jsonify({'error': 'No image file provided'}), 400
+        file = request.files['image']
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+        if not allowed_file(file.filename):
+            return jsonify({'error': 'Invalid file type'}), 400
+        
+        filename = secure_filename(file.filename)
+        image_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(image_path)
+        
+        print(f"[PEST] Request received: {filename}")
+        result = pest_predict(image_path)
+        print(f"[PEST] Result: {result.get('pest_name')} ({int(result.get('confidence',0)*100)}%)")
+        
+        try: os.remove(image_path)
+        except: pass
+        
+        return jsonify({
+            'success': True,
+            'result': {
+                'pest_name': result['pest_name'],
+                'confidence': result['confidence'],
+                'severity': result['severity'],
+                'description': result.get('description', '')
+            }
+        })
+    except Exception as e:
+        print(f"[PEST] Error: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
@@ -538,8 +599,8 @@ def get_personalized_news(user_id):
             
             if user_doc.exists:
                 user_data = user_doc.to_dict()
-                # Frontend uses 'mainCrops', but some older data might have 'crops'
-                crops = user_data.get('mainCrops') or user_data.get('crops', [])
+                # Frontend uses 'crops_grown' from the UserProfile interface
+                crops = user_data.get('crops_grown') or user_data.get('mainCrops') or user_data.get('crops', [])
                 
                 # Construct best possible location string
                 district = user_data.get('district')
@@ -547,6 +608,8 @@ def get_personalized_news(user_id):
                 
                 if district and state:
                    location = f"{district}, {state}"
+                elif state:
+                   location = state
                 elif district:
                    location = district
                 else:
@@ -556,18 +619,155 @@ def get_personalized_news(user_id):
         except Exception as db_err:
             print(f"[NEWS] Firestore Error (Using defaults): {db_err}")
             
-        print(f"[NEWS] Fetching for {user_id} (Crops: {crops}, Loc: {location})")
+        print(f"[NEWS] Personalized - Fetching for {user_id} (Crops: {crops}, Loc: {location})")
         
         # Async call wrapper
         import asyncio
         news = asyncio.run(news_service.get_personalized_news(crops, location))
+        
+        if isinstance(news, dict) and 'error' in news:
+            return jsonify({'success': False, 'error': news['error']}), 500
         
         return jsonify({'success': True, 'news': news})
     except Exception as e:
         print(f"[NEWS] Error: {e}")
         import traceback
         traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/news/general', methods=['GET', 'OPTIONS'])
+def get_general_news():
+    """
+    Fetch general agriculture news for India.
+    No authentication required as this is public news.
+    """
+    try:
+        print(f"[NEWS] General - Fetching broad agriculture news")
+        
+        # Async call wrapper
+        import asyncio
+        news = asyncio.run(news_service.get_general_news())
+        
+        if isinstance(news, dict) and 'error' in news:
+            return jsonify({'success': False, 'error': news['error']}), 500
+        
+        return jsonify({'success': True, 'news': news})
+    except Exception as e:
+        print(f"[NEWS] General Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# --- VoiceText Routes ---
+from flask import send_from_directory
+
+@app.route('/uploads/audio/<filename>')
+def uploaded_audio(filename):
+    return send_from_directory(AUDIO_FOLDER, filename)
+
+@app.route('/api/voice/stt', methods=['POST'])
+@require_auth
+def speech_to_text():
+    try:
+        if 'audio' not in request.files:
+            return jsonify({'error': 'No audio file provided'}), 400
+            
+        file = request.files['audio']
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+            
+        # Save temporarily
+        filename = f"stt_{uuid.uuid4()}.wav"
+        filepath = os.path.join(AUDIO_FOLDER, filename)
+        file.save(filepath)
+        
+        result = voice_service.transcribe(filepath)
+        
+        # Cleanup
+        try:
+            os.remove(filepath)
+        except:
+            pass
+            
+        if 'error' in result:
+             return jsonify(result), 500
+             
+        return jsonify({'success': True, 'text': result['text']})
+        
+    except Exception as e:
+        print(f"STT Route Error: {e}")
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/voice/tts', methods=['POST'])
+@require_auth
+def text_to_speech():
+    try:
+        data = request.json
+        text = data.get('text')
+        language = data.get('language', 'en')
+        
+        if not text:
+            return jsonify({'error': 'Text is required'}), 400
+            
+        result = voice_service.text_to_speech(text, language)
+        
+        if 'error' in result:
+             return jsonify(result), 500
+             
+        # Result contains audio_url which points to /uploads/audio/...
+        return jsonify({'success': True, 'audio_url': result['audio_url']})
+        
+    except Exception as e:
+        print(f"TTS Route Error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+# --- PDF Generation Route ---
+from services.pdf_service import generate_chat_pdf
+from flask import send_file
+
+@app.route('/api/generate-pdf', methods=['POST'])
+@require_auth
+def generate_pdf():
+    """Generate PDF from chat conversation"""
+    try:
+        data = request.json
+        user_id = data.get('userId')
+        chat_id = data.get('chatId')
+        
+        if not user_id or not chat_id:
+            return jsonify({'success': False, 'error': 'Missing userId or chatId'}), 400
+        
+        # Verify user_id matches token
+        if request.user.get('uid') != user_id and os.getenv("FLASK_ENV") != "development":
+            return jsonify({'success': False, 'error': 'Unauthorized access'}), 403
+        
+        print(f"[PDF] Generating PDF for user {user_id}, chat {chat_id}")
+        
+        # Generate PDF
+        pdf_buffer = generate_chat_pdf(user_id, chat_id)
+        
+        # Create filename with current date
+        filename = f'KrishiAI_Advisory_{datetime.now().strftime("%d-%m-%Y")}.pdf'
+        
+        print(f"[PDF] Success - Generated {filename}")
+        
+        # Send file
+        pdf_buffer.seek(0)
+        return send_file(
+            pdf_buffer,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=filename
+        )
+    except ValueError as ve:
+        print(f"[PDF] Validation Error: {ve}")
+        return jsonify({'success': False, 'error': str(ve)}), 404
+    except Exception as e:
+        print(f"[PDF] Generation Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/weather/current', methods=['GET', 'OPTIONS'])
 @require_auth

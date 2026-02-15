@@ -13,7 +13,8 @@ import {
     updateDoc,
     getDoc,
     startAfter,
-    onSnapshot
+    onSnapshot,
+    deleteDoc
 } from 'firebase/firestore';
 
 export interface ChatSession {
@@ -172,19 +173,31 @@ export const chatService = {
     },
 
     /**
-     * Delete a chat session
+     * Delete a chat session and all its messages
      */
-    deleteChat: async (userId: string, chatId: string) => {
-        // Note: This only deletes the chat metadata doc. 
-        // Subcollections (messages) are NOT automatically deleted in client-side Firestore.
-        // For a hackathon/MVP, this is acceptable, or use a Cloud Function.
+    deleteChat: async (userId: string, chatId: string): Promise<boolean> => {
         try {
-            // We'll leave it simple for now and just delete the top doc
-            await setDoc(doc(db, USERS_COLLECTION, userId, CHATS_COLLECTION, chatId), { deleted: true }, { merge: true });
-            // Ideally we should actually delete it
-            // await deleteDoc(doc(db, USERS_COLLECTION, userId, CHATS_COLLECTION, chatId));
+            // 1. Delete all messages in subcollection
+            const messagesRef = collection(db, USERS_COLLECTION, userId, CHATS_COLLECTION, chatId, MESSAGES_COLLECTION);
+            const messagesSnapshot = await getDocs(messagesRef);
+
+            // Delete all messages in batches for better performance
+            const deletePromises = messagesSnapshot.docs.map(msgDoc => {
+                const msgDocRef = doc(db, USERS_COLLECTION, userId, CHATS_COLLECTION, chatId, MESSAGES_COLLECTION, msgDoc.id);
+                return deleteDoc(msgDocRef);
+            });
+
+            await Promise.all(deletePromises);
+
+            // 2. Delete the chat document itself
+            const chatDocRef = doc(db, USERS_COLLECTION, userId, CHATS_COLLECTION, chatId);
+            await deleteDoc(chatDocRef);
+
+            console.log(`Successfully deleted chat ${chatId} and ${messagesSnapshot.docs.length} messages`);
+            return true;
         } catch (error) {
             console.error("Error deleting chat:", error);
+            return false;
         }
     }
 };

@@ -109,3 +109,4 @@ const WeatherModal: React.FC<WeatherModalProps> = ({ isOpen, onClose, data, load
 };
 
 export default WeatherModal;
+

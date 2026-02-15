@@ -124,7 +124,7 @@ const Roadmap: React.FC<{ lang: Language }> = ({ lang }) => {
     if (loading) {
         return (
             <div className="flex flex-col items-center justify-center min-h-screen bg-[#FAFAF7]">
-                <Loader2 className="w-16 h-16 text-[#1F5F4A] animate-spin mb-4" />
+                <Loader2 className="w-16 h-16 text-[#043744] animate-spin mb-4" />
                 <h2 className="text-2xl font-bold text-[#1E1E1E]">Generating 10-Year Sustainability Roadmap...</h2>
                 <p className="text-[#555555] mt-2">Analyzing market trends, labor projections, and financial resilience.</p>
             </div>
@@ -139,7 +139,7 @@ const Roadmap: React.FC<{ lang: Language }> = ({ lang }) => {
                 <p className="text-red-500 mb-6 text-center max-w-md">{error}</p>
                 <button
                     onClick={() => navigate('/advisory')}
-                    className="px-6 py-3 bg-[#1F5F4A] text-white rounded-xl font-bold hover:bg-[#184d3c] transition-all"
+                    className="px-6 py-3 bg-[#043744] text-white rounded-xl font-bold hover:bg-[#000D0F] transition-all"
                 >
                     Return to Advisory
                 </button>
@@ -156,13 +156,13 @@ const Roadmap: React.FC<{ lang: Language }> = ({ lang }) => {
                 <div className="flex items-center justify-between mb-8 no-print">
                     <button
                         onClick={() => navigate('/advisory')}
-                        className="flex items-center gap-2 text-[#555555] font-bold hover:text-[#1F5F4A] transition-colors"
+                        className="flex items-center gap-2 text-[#555555] font-bold hover:text-[#043744] transition-colors"
                     >
                         <ArrowLeft className="w-5 h-5" /> Back to Options
                     </button>
                     <button
                         onClick={handleDownloadPDF}
-                        className="flex items-center gap-2 px-6 py-3 bg-[#1F5F4A] text-white rounded-xl font-bold hover:bg-[#184d3c] transition-all shadow-md"
+                        className="flex items-center gap-2 px-6 py-3 bg-[#043744] text-white rounded-xl font-bold hover:bg-[#000D0F] transition-all shadow-md"
                     >
                         <Download className="w-5 h-5" /> Download PDF
                     </button>
@@ -174,15 +174,15 @@ const Roadmap: React.FC<{ lang: Language }> = ({ lang }) => {
                     {/* Title Section */}
                     <div className="mb-10 text-center border-b border-gray-100 pb-8">
                         <div className="inline-flex items-center justify-center p-3 bg-[#E6F4EA] rounded-full mb-4">
-                            <TrendingUp className="w-8 h-8 text-[#1F5F4A]" />
+                            <TrendingUp className="w-8 h-8 text-[#043744]" />
                         </div>
                         <h1 className="text-3xl md:text-4xl font-extrabold text-[#1E1E1E] mb-4">{roadmap.title}</h1>
                         <p className="text-[#555555] text-lg max-w-3xl mx-auto leading-relaxed">{roadmap.overview}</p>
                     </div>
 
                     {/* Verdict Banner */}
-                    <div className="mb-10 bg-[#FAFAF7] border-l-4 border-[#1F5F4A] p-6 rounded-r-xl">
-                        <h3 className="text-sm font-bold text-[#1F5F4A] uppercase tracking-widest mb-2">Final Strategic Verdict</h3>
+                    <div className="mb-10 bg-[#FAFAF7] border-l-4 border-[#043744] p-6 rounded-r-xl">
+                        <h3 className="text-sm font-bold text-[#043744] uppercase tracking-widest mb-2">Final Strategic Verdict</h3>
                         <p className="text-xl font-bold text-[#1E1E1E]">{roadmap.final_verdict}</p>
                     </div>
 
@@ -223,7 +223,7 @@ const Roadmap: React.FC<{ lang: Language }> = ({ lang }) => {
                 {/* 3-Phase Timeline with Quarterly Breakdown */}
                 <div className="mb-12">
                     <div className="flex items-center gap-3 mb-8">
-                        <Calendar className="w-6 h-6 text-[#1F5F4A]" />
+                        <Calendar className="w-6 h-6 text-[#043744]" />
                         <h2 className="text-2xl font-bold text-[#1E1E1E]">Strategic Timeline with Quarterly Breakdown</h2>
                     </div>
 
@@ -233,7 +233,7 @@ const Roadmap: React.FC<{ lang: Language }> = ({ lang }) => {
                                 {/* Phase Header */}
                                 <div className="mb-6 border-b border-[#E6E6E6] pb-4">
                                     <div className="flex items-center gap-3 mb-2">
-                                        <div className="flex items-center justify-center w-12 h-12 rounded-full bg-[#1F5F4A] text-white shadow-md">
+                                        <div className="flex items-center justify-center w-12 h-12 rounded-full bg-[#043744] text-white shadow-md">
                                             <span className="font-bold text-lg">{phaseIndex + 1}</span>
                                         </div>
                                         <div className="flex-1">
@@ -241,7 +241,7 @@ const Roadmap: React.FC<{ lang: Language }> = ({ lang }) => {
                                             <p className="text-sm text-[#555555] font-medium">{phase.timeframe}</p>
                                         </div>
                                     </div>
-                                    <p className="text-base font-semibold text-[#1F5F4A] mt-3">Focus: {phase.focus}</p>
+                                    <p className="text-base font-semibold text-[#043744] mt-3">Focus: {phase.focus}</p>
                                 </div>
 
                                 {/* Quarterly Breakdown - Only if quarters exist */}
@@ -251,7 +251,7 @@ const Roadmap: React.FC<{ lang: Language }> = ({ lang }) => {
                                             <div key={qIndex} className="bg-white rounded-2xl border border-[#E6E6E6] p-6 shadow-sm hover:shadow-md transition-shadow">
                                                 <div className="flex justify-between items-start mb-4">
                                                     <h4 className="text-lg font-bold text-[#1E1E1E]">{quarter.period}</h4>
-                                                    <span className="text-xs font-bold text-white bg-[#1F5F4A] px-3 py-1 rounded-full">
+                                                    <span className="text-xs font-bold text-white bg-[#043744] px-3 py-1 rounded-full">
                                                         {quarter.financial_target}
                                                     </span>
                                                 </div>
@@ -262,7 +262,7 @@ const Roadmap: React.FC<{ lang: Language }> = ({ lang }) => {
                                                     <ul className="space-y-2">
                                                         {quarter.actions.map((action, aIndex) => (
                                                             <li key={aIndex} className="flex items-start gap-2 text-sm text-[#555555]">
-                                                                <CheckCircle className="w-4 h-4 text-[#22C55E] mt-0.5 flex-shrink-0" />
+                                                                <CheckCircle className="w-4 h-4 text-[#043744] mt-0.5 flex-shrink-0" />
                                                                 <span>{action}</span>
                                                             </li>
                                                         ))}
@@ -275,7 +275,7 @@ const Roadmap: React.FC<{ lang: Language }> = ({ lang }) => {
                                                     <div className="space-y-2">
                                                         {quarter.milestones.map((milestone, mIndex) => (
                                                             <div key={mIndex} className="flex items-start gap-2 text-sm text-[#1E1E1E] bg-[#E6F4EA] px-3 py-2 rounded-lg">
-                                                                <TrendingUp className="w-4 h-4 text-[#1F5F4A] mt-0.5 flex-shrink-0" />
+                                                                <TrendingUp className="w-4 h-4 text-[#043744] mt-0.5 flex-shrink-0" />
                                                                 <span className="font-medium">{milestone}</span>
                                                             </div>
                                                         ))}
@@ -370,3 +370,4 @@ const Roadmap: React.FC<{ lang: Language }> = ({ lang }) => {
 };
 
 export default Roadmap;
+

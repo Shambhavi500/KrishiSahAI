@@ -9,7 +9,11 @@ import {
     ArrowLeft,
     Menu,
     Bot,
-    User
+    User,
+    FileDown,
+    Mic,
+    Volume2,
+    Square
 } from 'lucide-react';
 import { translations } from '../translations';
 import { api } from '../services/api';
@@ -18,6 +22,7 @@ import { getUserProfile } from '../services/firebase_db';
 import { chatService, ChatSession, Message } from '../services/chatService';
 import { ChatLayout } from '../components/ChatLayout';
 import { ChatSidebar } from '../components/ChatSidebar';
+import { DeleteConfirmationModal } from '../components/DeleteConfirmationModal';
 import { onAuthStateChanged } from 'firebase/auth';
 
 const Chatbot: React.FC<{ lang: Language }> = ({ lang }) => {
@@ -40,11 +45,121 @@ const Chatbot: React.FC<{ lang: Language }> = ({ lang }) => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
+    // Delete Modal State
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [chatToDelete, setChatToDelete] = useState<{ id: string; title: string } | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    // PDF Generation State
+    const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+
     // Backend Session State
     const [backendSessionId, setBackendSessionId] = useState<string | null>(null);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    };
+
+    // Voice State
+    const [isRecording, setIsRecording] = useState(false);
+    const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+    const [playingMessageId, setPlayingMessageId] = useState<number | null>(null);
+    const audioRef = useRef<HTMLAudioElement | null>(null);
+
+    // --- TTS Functionality ---
+    const handleTextToSpeech = async (text: string, messageId: number) => {
+        if (playingMessageId === messageId) {
+            // Stop playing
+            if (audioRef.current) {
+                audioRef.current.pause();
+                audioRef.current = null;
+            }
+            setPlayingMessageId(null);
+            return;
+        }
+
+        // Stop any current playback
+        if (audioRef.current) {
+            audioRef.current.pause();
+        }
+
+        try {
+            const token = await user?.getIdToken();
+            const response = await fetch('http://localhost:5000/api/voice/tts', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ text, language: lang === 'HI' ? 'hi' : 'en' })
+            });
+
+            const data = await response.json();
+            if (data.success && data.audio_url) {
+                const audio = new Audio(`http://localhost:5000${data.audio_url}`);
+                audioRef.current = audio;
+                setPlayingMessageId(messageId);
+
+                audio.play();
+                audio.onended = () => {
+                    setPlayingMessageId(null);
+                    audioRef.current = null;
+                };
+            }
+        } catch (error) {
+            console.error("TTS Error:", error);
+        }
+    };
+
+    // --- STT Functionality ---
+    const startRecording = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const recorder = new MediaRecorder(stream);
+            const chunks: BlobPart[] = [];
+
+            recorder.ondataavailable = (e) => chunks.push(e.data);
+            recorder.onstop = async () => {
+                const blob = new Blob(chunks, { type: 'audio/wav' });
+                const formData = new FormData();
+                formData.append('audio', blob, 'recording.wav');
+
+                setIsLoading(true);
+                try {
+                    const token = await user?.getIdToken();
+                    const response = await fetch('http://localhost:5000/api/voice/stt', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: formData
+                    });
+                    const data = await response.json();
+                    if (data.success) {
+                        setInput(prev => prev + " " + data.text);
+                    }
+                } catch (error) {
+                    console.error("STT Error:", error);
+                } finally {
+                    setIsLoading(false);
+                    setIsRecording(false);
+                }
+            };
+
+            recorder.start();
+            setMediaRecorder(recorder);
+            setIsRecording(true);
+        } catch (error) {
+            console.error("Microphone access denied:", error);
+            alert("Microphone access is required for voice input.");
+        }
+    };
+
+    const stopRecording = () => {
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+            mediaRecorder.stop();
+            mediaRecorder.stream.getTracks().forEach(track => track.stop());
+        }
     };
 
     useEffect(scrollToBottom, [messages]);
@@ -146,6 +261,82 @@ const Chatbot: React.FC<{ lang: Language }> = ({ lang }) => {
         setBackendSessionId(null);
         setInput('');
         setIsSidebarOpen(false); // Close sidebar on mobile
+    };
+
+    const handleDeleteChat = (chatId: string, chatTitle: string) => {
+        setChatToDelete({ id: chatId, title: chatTitle });
+        setDeleteModalOpen(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!chatToDelete || !user) return;
+
+        setIsDeleting(true);
+        try {
+            // Optimistic UI update - remove from list immediately
+            setChats(prev => prev.filter(c => c.id !== chatToDelete.id));
+
+            // If deleting active chat, switch to new chat view
+            if (activeChatId === chatToDelete.id) {
+                handleNewChat();
+            }
+
+            // Delete from Firestore
+            const success = await chatService.deleteChat(user.uid, chatToDelete.id);
+
+            if (!success) {
+                // Revert optimistic update on failure
+                console.error('Failed to delete chat');
+                // Optionally show error toast here
+                // For now, the chat list will refresh from Firestore subscription
+            }
+        } catch (error) {
+            console.error('Error in delete handler:', error);
+        } finally {
+            setIsDeleting(false);
+            setDeleteModalOpen(false);
+            setChatToDelete(null);
+        }
+    };
+
+    const handleDownloadPDF = async () => {
+        if (!activeChatId || !user) return;
+
+        setIsGeneratingPDF(true);
+        try {
+            const response = await fetch('http://localhost:5000/api/generate-pdf', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${await user.getIdToken()}`
+                },
+                body: JSON.stringify({
+                    userId: user.uid,
+                    chatId: activeChatId
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('PDF generation failed');
+            }
+
+            // Download the PDF
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `KrishiAI_Advisory_${new Date().toLocaleDateString('en-GB').replace(/\//g, '-')}.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('PDF generation failed:', error);
+            // Optionally show error toast here
+            alert('Failed to generate PDF. Please try again.');
+        } finally {
+            setIsGeneratingPDF(false);
+        }
     };
 
     const handleSend = async (manualMessage?: string) => {
@@ -293,6 +484,7 @@ const Chatbot: React.FC<{ lang: Language }> = ({ lang }) => {
             activeChatId={activeChatId}
             onSelectChat={setActiveChatId}
             onNewChat={handleNewChat}
+            onDeleteChat={handleDeleteChat}
             isOpen={isSidebarOpen}
             onClose={() => setIsSidebarOpen(false)}
         />
@@ -303,18 +495,40 @@ const Chatbot: React.FC<{ lang: Language }> = ({ lang }) => {
             <ChatLayout sidebar={Sidebar}>
                 {/* Header for Back Navigation (if from Advisory OR CropCare) - Visible on both Mobile & Desktop */}
                 {(location.state?.fromAdvisory || location.state?.fromCropCare) && (
-                    <div className="flex items-center p-4 border-b border-[#E6E6E6] bg-white sticky top-0 z-30">
+                    <div className="flex items-center justify-between p-4 border-b border-[#E0E6E6] bg-white sticky top-0 z-30">
                         <button
                             onClick={() => {
                                 // Navigate back to source with restored state
                                 const targetPath = location.state?.fromAdvisory ? '/advisory' : '/crop-care';
                                 navigate(targetPath, { state: location.state.previousState });
                             }}
-                            className="flex items-center gap-2 text-[#555555] font-bold hover:text-[#1F5F4A] transition-colors"
+                            className="flex items-center gap-2 text-[#6B7878] font-bold hover:text-[#043744] transition-colors"
                         >
                             <ArrowLeft className="w-5 h-5" />
                             {t.back} to {location.state?.fromAdvisory ? 'Recommendations' : 'Assessment'}
                         </button>
+
+                        {/* PDF Download Button */}
+                        {messages.length > 0 && activeChatId && (
+                            <button
+                                onClick={handleDownloadPDF}
+                                disabled={isGeneratingPDF || isLoading}
+                                className="flex items-center gap-2 px-4 py-2 bg-[#043744] text-white rounded-xl font-bold hover:bg-[#000D0F] transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="Download PDF"
+                            >
+                                {isGeneratingPDF ? (
+                                    <>
+                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                        Generating...
+                                    </>
+                                ) : (
+                                    <>
+                                        <FileDown className="w-4 h-4" />
+                                        Download PDF
+                                    </>
+                                )}
+                            </button>
+                        )}
                     </div>
                 )}
 
@@ -326,11 +540,11 @@ const Chatbot: React.FC<{ lang: Language }> = ({ lang }) => {
                     Simple approach: If fromAdvisory, showing the back button bar above is fine. 
                 */}
                 {!location.state?.fromAdvisory && !location.state?.fromCropCare && (
-                    <div className="md:hidden flex items-center p-4 border-b border-[#E6E6E6] bg-white sticky top-0 z-10">
+                    <div className="md:hidden flex items-center p-4 border-b border-[#E0E6E6] bg-white sticky top-0 z-10">
                         <button onClick={() => setIsSidebarOpen(true)} className="p-2 mr-2">
-                            <Menu className="w-6 h-6 text-[#1E1E1E]" />
+                            <Menu className="w-6 h-6 text-[#000D0F]" />
                         </button>
-                        <h1 className="text-lg font-bold text-[#1E1E1E]">Knowledge Assistant</h1>
+                        <h1 className="text-lg font-bold text-[#000D0F]">Knowledge Assistant</h1>
                     </div>
                 )}
 
@@ -338,30 +552,30 @@ const Chatbot: React.FC<{ lang: Language }> = ({ lang }) => {
                 <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6">
                     {messages.length === 0 ? (
                         <div className="h-full flex flex-col items-center justify-center text-center opacity-40">
-                            <div className="w-24 h-24 bg-[#FAFAF7] rounded-[32px] flex items-center justify-center mb-6">
-                                <Bot className="w-12 h-12 text-[#1F5F4A]" />
+                            <div className="w-24 h-24 bg-[#FAFCFC] rounded-[32px] flex items-center justify-center mb-6">
+                                <Bot className="w-12 h-12 text-[#043744]" />
                             </div>
-                            <h2 className="text-2xl font-bold text-[#1E1E1E] mb-2">{t.navAskAI}</h2>
-                            <p className="max-w-xs mx-auto text-[#555555]">Ask about crop diseases, market prices, or farming techniques.</p>
+                            <h2 className="text-2xl font-bold text-[#000D0F] mb-2">{t.navAskAI}</h2>
+                            <p className="max-w-xs mx-auto text-[#6B7878]">Ask about crop diseases, market prices, or farming techniques.</p>
                         </div>
                     ) : (
                         messages.map((msg, idx) => (
                             <div key={idx} className={`flex gap-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                                 {msg.role !== 'user' && (
-                                    <div className="w-8 h-8 rounded-full bg-[#1F5F4A] flex items-center justify-center mt-2 flex-shrink-0">
+                                    <div className="w-8 h-8 rounded-full bg-[#043744] flex items-center justify-center mt-2 flex-shrink-0">
                                         <Bot className="w-5 h-5 text-white" />
                                     </div>
                                 )}
 
                                 <div className={`max-w-[85%] md:max-w-[70%] p-5 rounded-[24px] shadow-sm ${msg.role === 'user'
-                                    ? 'bg-[#1F5F4A] text-white rounded-tr-sm'
-                                    : 'bg-[#FAFAF7] text-[#1E1E1E] border border-[#E6E6E6] rounded-tl-sm'
+                                    ? 'bg-[#043744] text-white rounded-tr-sm'
+                                    : 'bg-[#FAFCFC] text-[#000D0F] border border-[#E0E6E6] rounded-tl-sm'
                                     }`}>
                                     <div className={`text-[15px] leading-relaxed markdown-body whitespace-pre-wrap ${msg.role === 'user' ? 'text-white' : ''}`}>
                                         <ReactMarkdown
                                             remarkPlugins={[remarkGfm, remarkBreaks]}
                                             components={{
-                                                strong: ({ node, ...props }) => <span className={`font-bold ${msg.role === 'user' ? 'text-white' : 'text-[#1F5F4A]'}`} {...props} />,
+                                                strong: ({ node, ...props }) => <span className={`font-bold ${msg.role === 'user' ? 'text-white' : 'text-[#043744]'}`} {...props} />,
                                                 ul: ({ node, ...props }) => <ul className="list-disc pl-5 my-2 space-y-1" {...props} />,
                                                 ol: ({ node, ...props }) => <ol className="list-decimal pl-5 my-2 space-y-1" {...props} />,
                                                 li: ({ node, ...props }) => <li className="mb-1" {...props} />,
@@ -375,9 +589,20 @@ const Chatbot: React.FC<{ lang: Language }> = ({ lang }) => {
                                     </div>
                                 </div>
 
+                                {/* TTS Button for AI messages */}
+                                {msg.role !== 'user' && (
+                                    <button
+                                        onClick={() => handleTextToSpeech(msg.content, idx)}
+                                        className="mt-2 ml-2 p-2 text-stone-400 hover:text-[#043744] hover:bg-stone-100 rounded-full transition-all"
+                                        title="Listen to response"
+                                    >
+                                        {playingMessageId === idx ? <Square className="w-4 h-4 text-red-500 fill-current" /> : <Volume2 className="w-4 h-4" />}
+                                    </button>
+                                )}
+
                                 {msg.role === 'user' && (
-                                    <div className="w-8 h-8 rounded-full bg-[#E9F2EF] flex items-center justify-center mt-2 flex-shrink-0">
-                                        <User className="w-5 h-5 text-[#1F5F4A]" />
+                                    <div className="w-8 h-8 rounded-full bg-[#E8F5F5] flex items-center justify-center mt-2 flex-shrink-0">
+                                        <User className="w-5 h-5 text-[#043744]" />
                                     </div>
                                 )}
                             </div>
@@ -387,19 +612,35 @@ const Chatbot: React.FC<{ lang: Language }> = ({ lang }) => {
                 </div>
 
                 {/* Input Area */}
-                <div className="p-4 md:p-6 bg-white border-t border-[#E6E6E6]">
+                <div className="p-4 md:p-6 bg-white border-t border-[#E0E6E6]">
                     <div className="max-w-4xl mx-auto relative flex items-center gap-3">
                         <input
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                             placeholder={t.chatPlaceholder}
-                            className="w-full p-4 pr-14 bg-[#FAFAF7] border border-[#E6E6E6] rounded-[24px] focus:outline-none focus:border-[#1F5F4A] focus:ring-4 focus:ring-[#1F5F4A]/5 transition-all font-medium placeholder:text-stone-400"
+                            className="w-full p-4 pr-14 bg-[#FAFCFC] border border-[#E0E6E6] rounded-[24px] focus:outline-none focus:border-[#043744] focus:ring-4 focus:ring-[#043744]/5 transition-all font-medium placeholder:text-stone-400 text-[#000D0F]"
                         />
+
+                        {/* Mic Button */}
+                        <div className="absolute right-16 top-1/2 -translate-y-1/2 z-10">
+                            <button
+                                onClick={isRecording ? stopRecording : startRecording}
+                                disabled={isLoading}
+                                className={`p-2 rounded-full transition-all ${isRecording
+                                    ? 'bg-red-500 text-white animate-pulse shadow-red-200 shadow-lg'
+                                    : 'text-stone-400 hover:text-[#043744] hover:bg-stone-100'
+                                    }`}
+                                title={isRecording ? "Stop Recording" : "Voice Input"}
+                            >
+                                {isRecording ? <Square className="w-5 h-5 fill-current" /> : <Mic className="w-5 h-5" />}
+                            </button>
+                        </div>
+
                         <button
                             onClick={() => handleSend()}
                             disabled={!input.trim() || isLoading}
-                            className="absolute right-2 p-2 bg-[#1F5F4A] text-white rounded-2xl hover:bg-[#184d3c] disabled:opacity-50 disabled:bg-stone-300 transition-all shadow-md"
+                            className="absolute right-2 p-2 bg-[#043744] text-white rounded-2xl hover:bg-[#000D0F] disabled:opacity-50 disabled:bg-stone-300 transition-all shadow-md"
                         >
                             <Send className="w-5 h-5" />
                         </button>
@@ -408,9 +649,24 @@ const Chatbot: React.FC<{ lang: Language }> = ({ lang }) => {
                         AI can make mistakes. Verify important info.
                     </p>
                 </div>
-            </ChatLayout>
-        </div>
+            </ChatLayout >
+
+            {/* Delete Confirmation Modal */}
+            < DeleteConfirmationModal
+                isOpen={deleteModalOpen}
+                onClose={() => {
+                    if (!isDeleting) {
+                        setDeleteModalOpen(false);
+                        setChatToDelete(null);
+                    }
+                }}
+                onConfirm={confirmDelete}
+                chatTitle={chatToDelete?.title || ''}
+                isDeleting={isDeleting}
+            />
+        </div >
     );
 };
 
 export default Chatbot;
+

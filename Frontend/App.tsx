@@ -10,12 +10,14 @@ import KnowledgeHub from './pages/KnowledgeHub';
 import BusinessDetail from './pages/BusinessDetail';
 import Roadmap from './pages/Roadmap';
 import NewsPage from './pages/NewsPage';
+import EditProfile from './pages/EditProfile';
 import { Language, UserProfile } from './types';
 import { translations } from './translations';
 import { auth, db, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from './firebase';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
-import { RefreshCw } from 'lucide-react';
+import { onSnapshot, doc, setDoc, getDoc } from 'firebase/firestore';
+import { RefreshCw, Sun, Moon, User, LogOut, Settings } from 'lucide-react';
 import { api } from './services/api';
+import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 
 const getBestLocation = (u: UserProfile | null) => {
   if (!u) return "";
@@ -41,6 +43,7 @@ const Header: React.FC<{
 }> = ({ lang, setLang, toggleNotifications, toggleWeather, user, logout, weatherData, weatherLoading, refreshWeather }) => {
   const location = useLocation();
   const t = translations[lang];
+  const { theme, toggleTheme } = useTheme();
 
   const navItems = [
     { label: t.navHome, path: '/' },
@@ -60,7 +63,7 @@ const Header: React.FC<{
     <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-[#E6E6E6] py-4 px-6 shadow-sm">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         <Link to="/" className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-[#1F5F4A] rounded-xl flex items-center justify-center shadow-sm">
+          <div className="w-9 h-9 bg-[#043744] rounded-xl flex items-center justify-center shadow-sm">
             <span className="text-white font-bold text-lg">K</span>
           </div>
           <span className="text-2xl font-bold tracking-tight text-[#1E1E1E]">KrishiAI</span>
@@ -72,7 +75,7 @@ const Header: React.FC<{
               <Link
                 key={item.path}
                 to={item.path}
-                className={`hover:text-[#1F5F4A] transition-colors ${location.pathname === item.path ? 'text-[#1F5F4A] border-b-2 border-[#1F5F4A] pb-1' : ''}`}
+                className={`hover:text-[#043744] transition-colors ${location.pathname === item.path ? 'text-[#043744] border-b-2 border-[#043744] pb-1' : ''}`}
               >
                 {item.label}
               </Link>
@@ -85,7 +88,7 @@ const Header: React.FC<{
             <div className={`flex items-center gap-1 bg-[#FAFAF7] border border-[#E6E6E6] rounded-full px-1 py-0.5 transition-all group ${weatherLoading ? 'opacity-80' : ''}`}>
               <button
                 onClick={toggleWeather}
-                className="flex items-center gap-2 px-3 py-1.5 bg-transparent rounded-full text-[13px] font-bold text-[#1F5F4A] hover:bg-[#E9F2EF] transition-all"
+                className="flex items-center gap-2 px-3 py-1.5 bg-transparent rounded-full text-[13px] font-bold text-[#043744] hover:bg-[#E8F5E9] transition-all"
                 title="View Weather Details"
               >
                 <span className="group-hover:scale-110 transition-transform">☁</span>
@@ -93,7 +96,7 @@ const Header: React.FC<{
               </button>
               <button
                 onClick={refreshWeather}
-                className={`p-1.5 rounded-full hover:bg-[#E9F2EF] text-[#1F5F4A] transition-all ${weatherLoading ? 'animate-spin' : 'hover:scale-110'}`}
+                className={`p-1.5 rounded-full hover:bg-[#E8F5E9] text-[#043744] transition-all ${weatherLoading ? 'animate-spin' : 'hover:scale-110'}`}
                 title="Refresh Weather"
               >
                 <RefreshCw size={14} />
@@ -101,37 +104,50 @@ const Header: React.FC<{
             </div>
           )}
 
-          <div className="flex bg-[#FAFAF7] border border-[#E6E6E6] rounded-xl p-1">
-            {(['EN', 'HI', 'MR'] as Language[]).map((l) => (
+          <div className="flex bg-[#FAFAF7] border border-[#E6E6E6] rounded-xl p-1 gap-1">
+            {[{ code: 'EN', label: 'ENG' }, { code: 'HI', label: 'हिंदी' }, { code: 'MR', label: 'मराठी' }].map((l) => (
               <button
-                key={l}
-                onClick={() => setLang(l)}
-                className={`px-3 py-1 text-[11px] font-bold rounded-lg transition-all ${lang === l ? 'bg-[#1F5F4A] text-white shadow-md' : 'text-stone-400 hover:text-stone-600'}`}
+                key={l.code}
+                onClick={() => setLang(l.code as Language)}
+                className={`px-3 py-1.5 text-[12px] font-bold rounded-lg transition-all ${lang === l.code ? 'bg-[#043744] text-white shadow-md' : 'text-stone-400 hover:text-[#043744]'} ${l.code !== 'EN' ? 'devanagari' : ''}`}
               >
-                {l}
+                {l.label}
               </button>
             ))}
           </div>
 
+
+
           {user && (
-            <div className="flex items-center gap-3">
-              <button
-                onClick={toggleNotifications}
-                className="p-2.5 text-[#555555] bg-[#FAFAF7] border border-[#E6E6E6] rounded-xl hover:text-[#1F5F4A] hover:bg-white transition-all shadow-sm"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" /></svg>
+            <div className="relative group">
+              <button className="flex items-center gap-2 bg-[#FAFAF7] border border-[#E6E6E6] px-3 py-1.5 rounded-xl hover:bg-stone-100 transition-colors">
+                <div className="w-8 h-8 rounded-full bg-[#043744] flex items-center justify-center text-white font-bold text-sm">
+                  {user.name && user.name.charAt(0).toUpperCase()}
+                </div>
+                <div className="hidden md:block text-left">
+                  <p className="text-xs font-bold text-[#1E1E1E] leading-tight">{user.name}</p>
+                  <p className="text-[10px] text-[#555555] capitalize">{user.occupation}</p>
+                </div>
               </button>
-              <button
-                onClick={logout}
-                className="text-xs font-bold text-red-500 hover:text-red-700 transition-colors uppercase tracking-widest"
-              >
-                {t.logout}
-              </button>
+
+              {/* Dropdown Menu */}
+              <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-[#E6E6E6] rounded-xl shadow-xl overflow-hidden opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                <Link to="/profile/edit" className="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold text-[#555555] hover:bg-[#FAFAF7] hover:text-[#043744] transition-colors">
+                  <Settings size={16} /> Edit Profile
+                </Link>
+                <div className="h-px bg-[#E6E6E6]"></div>
+                <button
+                  onClick={logout}
+                  className="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold text-red-500 hover:bg-red-50 transition-colors"
+                >
+                  <LogOut size={16} /> {t.logout}
+                </button>
+              </div>
             </div>
           )}
         </div>
       </div>
-    </header>
+    </header >
   );
 };
 
@@ -142,6 +158,7 @@ const LoginFlow: React.FC<{ onLogin: (e: string, p: string) => void; onSwitch: (
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const { theme } = useTheme();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -159,11 +176,11 @@ const LoginFlow: React.FC<{ onLogin: (e: string, p: string) => void; onSwitch: (
     <div className="min-h-[80vh] flex items-center justify-center p-6">
       <div className="bg-white border border-[#E6E6E6] p-10 rounded-[48px] shadow-2xl w-full max-w-lg animate-in fade-in slide-in-from-bottom-8 duration-500">
         <div className="flex flex-col items-center mb-10">
-          <div className="w-16 h-16 bg-[#1F5F4A] rounded-2xl flex items-center justify-center shadow-lg mb-6">
+          <div className="w-16 h-16 bg-[#043744] rounded-2xl flex items-center justify-center shadow-lg mb-6">
             <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M2.7 10.3l9.3-9.3 9.3 9.3" /><path d="M4 11v11h16V11" /><path d="M9 14h6v8H9z" /></svg>
           </div>
           <h1 className="text-3xl font-extrabold text-[#1E1E1E]">{t.loginTitle}</h1>
-          <p className="text-[#1F5F4A] font-bold text-sm tracking-widest">{t.loginSub}</p>
+          <p className="text-[#043744] font-bold text-sm tracking-widest">{t.loginSub}</p>
         </div>
 
         <form className="space-y-6" onSubmit={handleSubmit}>
@@ -177,7 +194,7 @@ const LoginFlow: React.FC<{ onLogin: (e: string, p: string) => void; onSwitch: (
                 placeholder="farmer@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full p-4 bg-[#FAFAF7] border border-[#E6E6E6] rounded-2xl focus:outline-none focus:border-[#1F5F4A] focus:ring-4 focus:ring-[#1F5F4A]/5 transition-all"
+                className="w-full p-4 bg-[#FAFAF7] border border-[#E6E6E6] text-[#1E1E1E] rounded-2xl focus:outline-none focus:border-[#043744] focus:ring-4 focus:ring-[#043744]/5 transition-all"
               />
             </div>
             <div>
@@ -189,7 +206,7 @@ const LoginFlow: React.FC<{ onLogin: (e: string, p: string) => void; onSwitch: (
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full p-4 bg-[#FAFAF7] border border-[#E6E6E6] rounded-2xl focus:outline-none focus:border-[#1F5F4A] focus:ring-4 focus:ring-[#1F5F4A]/5 transition-all"
+                  className="w-full p-4 bg-[#FAFAF7] border border-[#E6E6E6] text-[#1E1E1E] rounded-2xl focus:outline-none focus:border-[#043744] focus:ring-4 focus:ring-[#043744]/5 transition-all"
                 />
               </div>
             </div>
@@ -198,14 +215,14 @@ const LoginFlow: React.FC<{ onLogin: (e: string, p: string) => void; onSwitch: (
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-5 bg-[#1F5F4A] text-white rounded-3xl font-extrabold text-xl hover:bg-[#184d3c] transition-all shadow-lg hover:scale-[1.02] disabled:opacity-50"
+            className="w-full py-5 bg-[#043744] text-white rounded-3xl font-extrabold text-xl hover:bg-[#000D0F] transition-all shadow-lg hover:scale-[1.02] disabled:opacity-50"
           >
             {loading ? "Logging in..." : t.login}
           </button>
 
           <div className="text-center mt-8">
             <p className="text-[#555555] text-sm">
-              {t.dontHaveAccount} <button type="button" onClick={onSwitch} className="text-[#1F5F4A] font-bold hover:underline">{t.signup}</button>
+              {t.dontHaveAccount} <button type="button" onClick={onSwitch} className="text-[#043744] font-bold hover:underline">{t.signup}</button>
             </p>
           </div>
         </form>
@@ -407,22 +424,32 @@ const App: React.FC = () => {
   const [weatherLoading, setWeatherLoading] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (u) => {
+    let profileUnsub: (() => void) | null = null;
+
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
+      if (profileUnsub) {
+        profileUnsub();
+        profileUnsub = null;
+      }
+
       if (u) {
-        const docRef = doc(db, "users", u.uid);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          const profile = docSnap.data() as UserProfile;
-          setUser(profile);
-          // Fetch weather using accurate location logic
-          fetchWeather(getBestLocation(profile));
-        }
+        profileUnsub = onSnapshot(doc(db, "users", u.uid), (docSnap) => {
+          if (docSnap.exists()) {
+            const profile = docSnap.data() as UserProfile;
+            setUser(profile);
+            fetchWeather(getBestLocation(profile));
+          }
+        });
       } else {
         setUser(null);
       }
       setLoading(false);
     });
-    return () => unsubscribe();
+
+    return () => {
+      unsubscribe();
+      if (profileUnsub) profileUnsub();
+    };
   }, []);
 
   const fetchWeather = async (location: string) => {
@@ -469,51 +496,54 @@ const App: React.FC = () => {
     signOut(auth);
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center text-[#1F5F4A]">Loading...</div>;
-
-  if (!user) {
-    if (authView === 'login') return <LoginFlow onLogin={handleLogin} onSwitch={() => setAuthView('signup')} lang={lang} />;
-    return <SignupFlow onSignup={handleSignup} onSwitch={() => setAuthView('login')} lang={lang} />;
-  }
-
   return (
-    <Router>
-      <div className="min-h-screen bg-[#Fdfdfc]">
-        {/* Updated Header with refresh and loading props */}
-        <Header
-          lang={lang}
-          setLang={setLang}
-          toggleNotifications={() => { }}
-          toggleWeather={handleToggleWeather}
-          user={user}
-          logout={handleLogout}
-          weatherData={weatherData}
-          weatherLoading={weatherLoading}
-          refreshWeather={handleRefreshWeather}
-        />
+    <ThemeProvider>
+      {loading ? (
+        <div className="min-h-screen flex items-center justify-center text-[#1F5F4A] bg-[#FAFAF7]">Loading...</div>
+      ) : !user ? (
+        authView === 'login' ? <LoginFlow onLogin={handleLogin} onSwitch={() => setAuthView('signup')} lang={lang} /> : <SignupFlow onSignup={handleSignup} onSwitch={() => setAuthView('login')} lang={lang} />
+      ) : (
+        <Router>
+          <div className="min-h-screen bg-[#FDFDFC]">
+            {/* Updated Header with refresh and loading props */}
+            <Header
+              lang={lang}
+              setLang={setLang}
+              toggleNotifications={() => { }}
+              toggleWeather={handleToggleWeather}
+              user={user}
+              logout={handleLogout}
+              weatherData={weatherData}
+              weatherLoading={weatherLoading}
+              refreshWeather={handleRefreshWeather}
+            />
 
-        <WeatherModal
-          isOpen={isWeatherOpen}
-          onClose={() => setIsWeatherOpen(false)}
-          data={weatherData}
-          loading={weatherLoading}
-          location={getBestLocation(user)}
-        />
+            <WeatherModal
+              isOpen={isWeatherOpen}
+              onClose={() => setIsWeatherOpen(false)}
+              data={weatherData}
+              loading={weatherLoading}
+              location={getBestLocation(user)}
+            />
 
-        <Routes>
-          <Route path="/" element={<Home lang={lang} />} />
-          <Route path="/chat" element={<Chatbot lang={lang} />} />
-          <Route path="/advisory" element={<BusinessAdvisory lang={lang} user={user} />} />
-          <Route path="/news" element={<NewsPage lang={lang} user={user} />} />
-          <Route path="/crop-care" element={<CropCare lang={lang} />} />
-          <Route path="/waste-to-value" element={<WasteToValue lang={lang} />} />
-          <Route path="/hub" element={<KnowledgeHub lang={lang} />} />
-          <Route path="/business/:id" element={<BusinessDetail lang={lang} />} />
-          <Route path="/roadmap/:businessName" element={<Roadmap lang={lang} />} />
-        </Routes>
-      </div>
-    </Router>
+            <Routes>
+              <Route path="/" element={<Home lang={lang} />} />
+              <Route path="/chat" element={<Chatbot lang={lang} />} />
+              <Route path="/advisory" element={<BusinessAdvisory lang={lang} user={user} />} />
+              <Route path="/news" element={<NewsPage lang={lang} user={user} />} />
+              <Route path="/crop-care" element={<CropCare lang={lang} />} />
+              <Route path="/waste-to-value" element={<WasteToValue lang={lang} />} />
+              <Route path="/hub" element={<KnowledgeHub lang={lang} />} />
+              <Route path="/business/:id" element={<BusinessDetail lang={lang} />} />
+              <Route path="/roadmap/:businessName" element={<Roadmap lang={lang} />} />
+              <Route path="/profile/edit" element={<EditProfile lang={lang} />} />
+            </Routes>
+          </div>
+        </Router>
+      )}
+    </ThemeProvider>
   );
 };
 
 export default App;
+

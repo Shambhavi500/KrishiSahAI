@@ -74,13 +74,13 @@ const BusinessDetail: React.FC<{ lang: Language }> = ({ lang }) => {
         <div className="p-4 md:p-8 max-w-5xl mx-auto min-h-screen">
             <button
                 onClick={handleBack}
-                className="flex items-center gap-2 text-[#555555] font-bold mb-6 hover:text-[#1F5F4A] transition-colors"
+                className="flex items-center gap-2 text-[#555555] font-bold mb-6 hover:text-[#043744] transition-colors"
             >
                 <ArrowLeft className="w-5 h-5" /> Back to Recommendations
             </button>
 
             <div className="bg-white rounded-[40px] border border-[#E6E6E6] shadow-xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <div className="bg-[#1F5F4A] p-8 md:p-12 text-white relative overflow-hidden">
+                <div className="bg-[#043744] p-8 md:p-12 text-white relative overflow-hidden">
                     <div className="absolute top-0 right-0 p-10 opacity-10">
                         <Briefcase className="w-64 h-64" />
                     </div>
@@ -100,7 +100,7 @@ const BusinessDetail: React.FC<{ lang: Language }> = ({ lang }) => {
                         <div className="bg-[#FAFAF7] p-6 rounded-3xl border border-[#E6E6E6]">
                             <div className="flex items-center gap-3 mb-4">
                                 <div className="p-3 bg-white rounded-xl shadow-sm">
-                                    <DollarSign className="w-6 h-6 text-[#22C55E]" />
+                                    <DollarSign className="w-6 h-6 text-[#043744]" />
                                 </div>
                                 <h3 className="text-lg font-bold text-[#1E1E1E]">Financials</h3>
                             </div>
@@ -111,7 +111,7 @@ const BusinessDetail: React.FC<{ lang: Language }> = ({ lang }) => {
                                 </div>
                                 <div className="flex justify-between items-center border-b border-gray-200 pb-2">
                                     <span className="text-[#555555] font-medium">Monthly Profit</span>
-                                    <span className="text-[#1F5F4A] font-bold">{business.profit}</span>
+                                    <span className="text-[#043744] font-bold">{business.profit}</span>
                                 </div>
                             </div>
                         </div>
@@ -153,7 +153,7 @@ const BusinessDetail: React.FC<{ lang: Language }> = ({ lang }) => {
                                 <div className="space-y-3">
                                     {business.implementation_steps.map((step, i) => (
                                         <div key={i} className="flex gap-3">
-                                            <div className="w-6 h-6 rounded-full bg-[#1F5F4A] text-white flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">
+                                            <div className="w-6 h-6 rounded-full bg-[#043744] text-white flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">
                                                 {i + 1}
                                             </div>
                                             <p className="text-[#555555] font-medium">{step}</p>
@@ -170,3 +170,4 @@ const BusinessDetail: React.FC<{ lang: Language }> = ({ lang }) => {
 };
 
 export default BusinessDetail;
+
