@@ -15,7 +15,7 @@ import {
     Volume2,
     Square
 } from 'lucide-react';
-import { translations } from '../translations';
+import { useLanguage } from '../src/context/LanguageContext';
 import { api } from '../services/api';
 import { auth } from '../firebase';
 import { getUserProfile } from '../services/firebase_db';
@@ -25,8 +25,8 @@ import { ChatSidebar } from '../components/ChatSidebar';
 import { DeleteConfirmationModal } from '../components/DeleteConfirmationModal';
 import { onAuthStateChanged } from 'firebase/auth';
 
-const Chatbot: React.FC<{ lang: Language }> = ({ lang }) => {
-    const t = translations[lang];
+const Chatbot: React.FC = () => {
+    const { t, language: lang } = useLanguage();
     const location = useLocation();
     const navigate = useNavigate();
 
