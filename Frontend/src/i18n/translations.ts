@@ -171,6 +171,10 @@ export const translations = {
         footerBtn: "Start with AI Assistant",
         footerCopyright: "© 2025 KrishiSahAI TechFiesta. Empowering Farmers with Technology.",
 
+        // Validation Section
+        validationBadge: "Validation",
+        validationTitle: "Validation Phase: Zero Mile",
+
         // Business Advisory & Chatbot
         knowledgeAssistant: "Knowledge Assistant",
         aiDisclaimer: "AI can make mistakes. Verify important info.",
@@ -424,6 +428,10 @@ export const translations = {
         footerBtn: "AI सहायक के साथ शुरू करें",
         footerCopyright: "© 2025 कृषिसहाय टेकफिएस्टा। प्रौद्योगिकी के साथ किसानों को सशक्त बनाना।",
 
+        // Validation Section
+        validationBadge: "सत्यापन",
+        validationTitle: "सत्यापन चरण: जीरो माइल",
+
         // Business Advisory & Chatbot
         knowledgeAssistant: "ज्ञान सहायक",
         aiDisclaimer: "AI गलतियाँ कर सकता है। महत्वपूर्ण जानकारी की पुष्टि करें।",
@@ -676,6 +684,10 @@ export const translations = {
         footerDesc: "उत्पादकता, शाश्वतता आणि नफा वाढवण्यासाठी AI-आधारित साधने वापरणाऱ्या हजारो शेतकऱ्यांमध्ये सामील व्हा.",
         footerBtn: "AI सहाय्यकासह प्रारंभ करा",
         footerCopyright: "© 2025 कृषीसहाय टेकफिएस्टा. तंत्रज्ञानाद्वारे शेतकऱ्यांना सक्षम करणे.",
+
+        // Validation Section
+        validationBadge: "सत्यापन",
+        validationTitle: "सत्यापन चरण: झिरो माईल",
 
         // Business Advisory & Chatbot
         knowledgeAssistant: "ज्ञान सहाय्यक",

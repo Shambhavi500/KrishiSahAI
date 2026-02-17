@@ -4,6 +4,7 @@ import { Briefcase, Sprout, Recycle, ArrowRight, BookOpen, ChevronDown } from 'l
 import { api } from '../services/api';
 import { auth } from '../firebase';
 import { getUserProfile } from '../services/firebase_db';
+import PhaseZero from '../components/Home/PhaseZero';
 
 const Home: React.FC = () => {
     const { t } = useLanguage();
@@ -201,6 +202,17 @@ const Home: React.FC = () => {
                         </div>
                     </div>
                 </div>
+                <button
+                    onClick={() => scrollToSection('validation')}
+                    className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce cursor-pointer p-2 hover:bg-[#043744]/5 rounded-full transition-colors hidden md:block"
+                >
+                    <ChevronDown className="w-8 h-8 text-[#043744]/40" />
+                </button>
+            </section>
+
+            {/* Section 6: Validation Phase: Zero Mile */}
+            <section className="h-full w-full snap-start relative flex items-center justify-center bg-[#FAF4E8]">
+                <PhaseZero />
                 <button
                     onClick={() => scrollToSection('footer')}
                     className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce cursor-pointer p-2 hover:bg-[#043744]/5 rounded-full transition-colors hidden md:block"
