@@ -46,9 +46,9 @@ const Home: React.FC = () => {
     ];
 
     return (
-        <div className="h-[calc(100vh-64px)] overflow-y-auto snap-y snap-mandatory scroll-smooth bg-white">
+        <div className="h-[calc(100vh-64px)] overflow-y-auto scroll-smooth bg-white">
             {/* SECTION 1: MAIN DASHBOARD (Split Screen) */}
-            <section className="snap-start h-full flex flex-col w-full max-w-[1600px] mx-auto p-2 md:p-4 gap-2 md:gap-4 bg-white">
+            <section className="h-full flex flex-col w-full max-w-[1600px] mx-auto p-2 md:p-4 gap-2 md:gap-4 bg-white">
                 <div className="flex flex-col lg:flex-row h-full w-full gap-2 md:gap-4 flex-1">
                     {/* LEFT SIDE (40%) - CHATBOT PANEL */}
                     <div className="w-full lg:w-[40%] h-[60%] lg:h-full order-1">
@@ -83,7 +83,7 @@ const Home: React.FC = () => {
             </section>
 
             {/* SECTION 2: Validation Phase */}
-            <section className="snap-start min-h-full flex flex-col items-center justify-center bg-white">
+            <section className="min-h-full flex flex-col items-center justify-center bg-white">
                 <div className="w-full">
                     <Suspense fallback={<div className="flex justify-center p-12"><Loader2 className="w-8 h-8 animate-spin text-deep-green" /></div>}>
                         <PhaseZero />
